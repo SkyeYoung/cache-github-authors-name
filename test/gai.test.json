@@ -1,0 +1,5 @@
+{
+  "remote": "https://github.com/JUST-NC/syn-sys.git",
+  "local": "./dist/test",
+  "directory": "."
+}
