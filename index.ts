@@ -118,7 +118,10 @@ const scanFiles = (dirPath: string): Promise<string[]> => (
     )
 );
 
-const getLog = (git: SimpleGit, filePath: string) => git.log({ file: filePath });
+const getLog = (git: SimpleGit, filePath: string, from?: string) => git.log({
+  file: filePath,
+  from,
+});
 
 const getAuthorFromSearch = (email: string) => (
   graphqlWithAuth<SearchUserInfo>(searchUserInfo, { queryStr: email })
@@ -198,21 +201,30 @@ const readCache = (config: Config): Promise<Map<string, string>> => (
 const cacheInfo = async (git: SimpleGit, filePaths: string[], config: Config) => {
   const len = config.local.length;
   const infoCache = await readCache(config);
+  const commits = new Set<string>();
 
-  await Promise.allSettled(filePaths.map((f) => getLog(git, f.slice(len + 1))
-    .then((v) => v.all)
+  await Promise.allSettled(filePaths.map((f) => getLog(git, f.slice(len + 1), infoCache.get('commit'))
+    .then((v) => {
+      if (v.latest) infoCache.set('commit', v.latest.hash);
+      return v.all;
+    })
     .then((logs) => Promise.allSettled(logs.map(async (log) => {
-      if (!infoCache.has(log.author_email)) {
-        const name = await getGitHubInfo({
-          email: log.author_email,
-          commit: log.hash,
-          owner: config.owner,
-          repo: config.repo,
-        });
-        infoCache.set(log.author_email, name);
+      if (!commits.has(log.hash)) {
+        commits.add(log.hash);
+        if (!infoCache.has(log.author_email)) {
+          const name = await getGitHubInfo({
+            email: log.author_email,
+            commit: log.hash,
+            owner: config.owner,
+            repo: config.repo,
+          });
+          infoCache.set(log.author_email, name);
+        }
       }
     })))))
-    .then(() => writeCache(config, infoCache));
+    .then(() => {
+      writeCache(config, infoCache);
+    });
 };
 
 export {
