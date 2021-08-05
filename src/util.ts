@@ -15,16 +15,6 @@ const graphqlWithAuth = graphql.defaults({
   },
 });
 
-/**
- * get the name of variables which value is falsy
- * @param args vars
- */
-const lackListStr = (...args: any[]) => (
-  args.filter((v) => !v)
-    .map((v) => Object.keys({ v })[0])
-    .join(', ')
-);
-
 const decodeRemote = (url: string) => {
   // sample: https://github.com/xxx/xx.git
   // sample: git@github.com:xxx/xx.git
@@ -40,13 +30,17 @@ const decodeRemote = (url: string) => {
 };
 
 const encodeRemote = (owner: string, repo: string, asSSH = false) => {
-  if (asSSH) {
-    return `git@github.com:${owner}/${repo}.git`;
+  if (!!owner && !!repo) {
+    if (asSSH) {
+      return `git@github.com:${owner}/${repo}.git`;
+    } else {
+      return `https://github.com/${owner}/${repo}.git`;
+    }
   } else {
-    return `https://github.com/${owner}/${repo}.git`;
+    throw new Error(`not valid ${owner || ''}${owner && repo && ', '}${repo || ''}`);
   }
 };
 
 export {
-  gql, graphqlWithAuth, lackListStr, decodeRemote, encodeRemote,
+  gql, graphqlWithAuth, decodeRemote, encodeRemote,
 };
