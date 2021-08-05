@@ -1,5 +1,6 @@
 {
   "remote": "https://github.com/JUST-NC/syn-sys.git",
-  "local": "./dist/test",
-  "directory": "."
+  "local": "./.cache/repo",
+  "directory": ".",
+  "cachePath": "./.cache/info-cache.json"
 }
