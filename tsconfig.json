@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
     "module": "ESNext",
+    "lib": [
+      "ESNext"
+    ],
     "target": "es5",
     "sourceMap": true,
     "strict": true,
