@@ -11,7 +11,7 @@ import {
   initRepo,
   loadConfig,
   scanFiles,
-} from '../index';
+} from '../src';
 
 const configPath = path.resolve(__dirname, './gai.test.json');
 const config: Config = { ...DEFAULT_CONFIG, ...JSON.parse(readFileSync(configPath, 'utf-8')) };

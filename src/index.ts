@@ -7,13 +7,13 @@ import { constants } from 'fs';
 import { SimpleGit } from 'simple-git/promise';
 import { validate as isEmail } from 'isemail';
 import isGitUrl from 'is-git-url';
-import { decodeRemote, encodeRemote, graphqlWithAuth } from './src/util';
+import { decodeRemote, encodeRemote, graphqlWithAuth } from './util';
 import {
   getUserInfoFromCommit,
   GetUserInfoFromCommit,
   searchUserInfo,
   SearchUserInfo,
-} from './src/graphql';
+} from './graphql';
 
 interface DefaultConfig {
   local: string;
