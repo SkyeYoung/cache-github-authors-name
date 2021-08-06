@@ -8,8 +8,8 @@
   },
   "devDependencies": {
     "@octokit/graphql-schema": "^10.58.0",
-    "@swc/cli": "^0.1.46",
     "@swc/jest": "^0.1.4",
+    "@types/is-git-url": "^1.0.0",
     "@types/is-url": "^1.2.30",
     "@types/jest": "^26.0.24",
     "@types/node": "^16.4.8",
@@ -30,11 +30,9 @@
   },
   "dependencies": {
     "@octokit/graphql": "^4.6.4",
-    "@types/is-git-url": "^1.0.0",
     "dotenv": "^10.0.0",
     "is-git-url": "^1.0.0",
     "isemail": "^3.2.0",
-    "nanoid": "^3.1.23",
     "simple-git": "^2.42.0"
   }
 }
