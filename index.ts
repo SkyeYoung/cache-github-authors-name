@@ -38,14 +38,14 @@ const DEFAULT_CONFIG: DefaultConfig = {
   cachePath: 'gai-cache.json',
 };
 
-const loadConfig = (config: string | CustomConfig): Promise<Config> => (
+const loadConfig = (config: string | CustomConfig = CONFIG_PATH): Promise<Config> => (
   (typeof config === 'string'
-    ? readFile(path.resolve(__dirname, config || CONFIG_PATH), 'utf-8')
+    ? readFile(path.resolve(__dirname, config), 'utf-8')
       .catch(() => {
         throw new Error(`"${CONFIG_PATH}" does not exists`);
       })
       .then<CustomConfig>((value) => JSON.parse(value))
-    : Promise.resolve<CustomConfig>(config || {}))
+    : Promise.resolve<CustomConfig>(config))
     .then((v) => {
       let custom = v;
       if (v.local) custom.local = path.join(v.local);
@@ -189,11 +189,13 @@ const getGitHubInfo: GetGitHubInfo = (props) => {
 
 const writeCache = (config: Config, cacheMap: Map<string, string>) => (
   writeFile(path.resolve(__dirname, config.cachePath), JSON.stringify(Object.fromEntries(cacheMap)))
+    .catch(() => {
+      throw new Error(`cannot write to ${config.cachePath}`);
+    })
 );
 
 const readCache = (config: Config): Promise<Map<string, string>> => (
-  access(config.cachePath, constants.R_OK)
-    .then(() => readFile(path.resolve(__dirname, config.cachePath)))
+  readFile(path.resolve(__dirname, config.cachePath))
     .then((buf) => buf.toString())
     .then((v) => new Map(JSON.parse(v)) as Map<string, string>)
     .catch(() => new Map<string, string>()));
