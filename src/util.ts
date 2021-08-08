@@ -1,5 +1,4 @@
 import { graphql } from '@octokit/graphql';
-import './env';
 import isGitUrl from 'is-git-url';
 
 /**

@@ -8,6 +8,7 @@ import { SimpleGit } from 'simple-git/promise';
 import { validate as isEmail } from 'isemail';
 import isGitUrl from 'is-git-url';
 import pLimit from 'p-limit';
+import './env';
 import { decodeRemote, encodeRemote, graphqlWithAuth } from './util';
 import {
   getUserInfoFromCommit,
@@ -22,6 +23,8 @@ interface DefaultConfig {
   directory: string;
   cachePath: string;
   concurrencyLimit: number;
+  isPrivate: boolean;
+  skipHttpsCheck: boolean;
 }
 
 export interface CustomConfig extends Partial<DefaultConfig> {
@@ -39,6 +42,8 @@ const DEFAULT_CONFIG: DefaultConfig = {
   branch: 'master',
   cachePath: 'gai-cache.json',
   concurrencyLimit: 60,
+  isPrivate: false,
+  skipHttpsCheck: false,
 };
 
 const loadConfig = (config: string | CustomConfig = CONFIG_PATH): Promise<Config> => (
@@ -50,7 +55,7 @@ const loadConfig = (config: string | CustomConfig = CONFIG_PATH): Promise<Config
       .then<CustomConfig>((value) => JSON.parse(value))
     : Promise.resolve<CustomConfig>(config))
     .then((v) => {
-      let custom = v;
+      const custom = v;
       if (v.local) custom.local = path.normalize(v.local);
       if (v.cachePath) custom.cachePath = path.normalize(v.cachePath);
       if (v.remote) {
@@ -58,13 +63,20 @@ const loadConfig = (config: string | CustomConfig = CONFIG_PATH): Promise<Config
           throw new Error('wrong remote, it should be a url string');
         }
         if (!v.repo || !v.owner) {
-          custom = {
-            ...custom,
-            ...decodeRemote(v.remote),
-          };
+          const res = decodeRemote(v.remote);
+          custom.owner = res.owner;
+          custom.repo = res.repo;
         }
       } else if (v.repo && v.owner) {
-        encodeRemote(v.owner, v.repo);
+        custom.remote = encodeRemote(v.owner, v.repo);
+      }
+      if (v.isPrivate) {
+        const prefix = 'https://';
+        if (custom.remote.startsWith(prefix)) {
+          custom.remote = `${prefix}${custom.owner}:${process.env.GITHUB_ACCESS_TOKEN}@${custom.remote.substring(prefix.length)}`;
+        } else if (!v.skipHttpsCheck) {
+          throw new Error('If the repo is private, you should use HTTPS url');
+        }
       }
 
       return custom;
@@ -185,25 +197,41 @@ const getGitHubInfo: GetGitHubInfo = (props) => {
   return Promise.any(promises);
 };
 
-const writeCache = (config: Config, cacheMap: Map<string, string>) => (
+const writeCache = (cachePath: Config['cachePath'], cacheMap: Map<string, string>) => (
   writeFile(
-    path.resolve(process.cwd(), config.cachePath),
+    path.resolve(process.cwd(), cachePath),
     JSON.stringify(Object.fromEntries(cacheMap)),
   )
     .catch(() => {
-      throw new Error(`cannot write to ${config.cachePath}`);
+      throw new Error(`cannot write to ${cachePath}`);
     })
 );
 
-const readCache = (config: Config): Promise<Map<string, string>> => (
-  readFile(path.resolve(process.cwd(), config.cachePath))
+const readCache = (cachePath: Config['cachePath']): Promise<Map<string, string>> => (
+  readFile(path.resolve(process.cwd(), cachePath))
     .then((buf) => buf.toString())
-    .then((v) => new Map(JSON.parse(v)) as Map<string, string>)
-    .catch(() => new Map<string, string>()));
+    .then((v) => JSON.parse(v))
+    .then((value) => new Map(Object.entries(value)) as Map<string, string>)
+    .catch(() => {
+      console.log('Cannot read the cache file, creating new...');
+      return new Map<string, string>();
+    }));
 
 const cacheInfo = async (git: SimpleGit, config: Config) => {
-  const infoCache = await readCache(config);
+  const infoCache = await readCache(config.cachePath);
   const limit = pLimit(config.concurrencyLimit);
+
+  const setAuthorName = async (log: DefaultLogFields & ListLogLine) => {
+    if (!infoCache.has(log.author_email)) {
+      const name = await getGitHubInfo({
+        email: log.author_email,
+        commit: log.hash,
+        owner: config.owner,
+        repo: config.repo,
+      });
+      infoCache.set(log.author_email, name);
+    }
+  };
 
   await git.log({ from: infoCache.get('commit') })
     .then((v) => {
@@ -218,19 +246,9 @@ const cacheInfo = async (git: SimpleGit, config: Config) => {
         throw new Error('Has no commits');
       }
     })
-    .then((logs) => logs.map((logInfo) => limit(async (log: DefaultLogFields & ListLogLine) => {
-      if (!infoCache.has(log.author_email)) {
-        const name = await getGitHubInfo({
-          email: log.author_email,
-          commit: log.hash,
-          owner: config.owner,
-          repo: config.repo,
-        });
-        infoCache.set(log.author_email, name);
-      }
-    }, logInfo)))
+    .then((logs) => logs.map((logInfo) => limit(setAuthorName, logInfo)))
     .then((logs) => Promise.all(logs))
-    .then(() => writeCache(config, infoCache));
+    .then(() => writeCache(config.cachePath, infoCache));
 };
 
 const cacheGitAuthorsInfo = (config?: Parameters<typeof loadConfig>[0]) => (
@@ -254,6 +272,8 @@ export {
   scanFiles,
   getGitHubInfo,
   getAuthorFromCommit,
+  writeCache,
+  readCache,
   cacheInfo,
   cacheGitAuthorsInfo,
 };
