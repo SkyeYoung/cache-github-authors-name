@@ -1,5 +1,5 @@
 import {
-  access, mkdir, readdir, readFile, writeFile,
+  access, mkdir, readdir, readFile, rm, writeFile,
 } from 'fs/promises';
 import path from 'path';
 import simpleGit, { CheckRepoActions, DefaultLogFields, ListLogLine } from 'simple-git';
@@ -101,13 +101,30 @@ const initRepo = (config: Config): Promise<SimpleGit> => {
       return repo;
     })
     .then((v) => v.checkIsRepo(CheckRepoActions.IS_REPO_ROOT))
-    .then((isRepo) => {
+    .then(async (isRepo) => {
       if (isRepo) {
+        const remotes = await repo.getRemotes(true);
+        if (remotes.every((v) => v.refs.fetch !== remote)) {
+          try {
+            await rm(local, {
+              recursive: true,
+              force: true,
+            });
+            repo = simpleGit();
+            await repo.clone(remote, local);
+          } catch (err) {
+            console.error(err);
+            throw new Error('Cannot clone new remote to repo');
+          }
+        }
         return repo;
-      } else if (remote && isGitUrl(remote)) {
-        return repo.clone(remote, '.');
       } else {
-        throw new Error('not a repo, and has not a legal remote url');
+        if (remote && isGitUrl(remote)) {
+          await repo.clone(remote, '.');
+          return repo;
+        } else {
+          throw new Error('not a repo, and has not a legal remote url');
+        }
       }
     });
 };
