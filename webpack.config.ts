@@ -2,7 +2,8 @@ import path from 'path';
 import type { Configuration } from 'webpack';
 
 const webpackConfig: Configuration = {
-  entry: './src/index.ts',
+  entry: './index.ts',
+  target: 'node',
   module: {
     rules: [
       {

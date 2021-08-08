@@ -2,11 +2,12 @@ import {
   access, mkdir, readdir, readFile, writeFile,
 } from 'fs/promises';
 import path from 'path';
-import simpleGit, { CheckRepoActions } from 'simple-git';
+import simpleGit, { CheckRepoActions, DefaultLogFields, ListLogLine } from 'simple-git';
 import { constants } from 'fs';
 import { SimpleGit } from 'simple-git/promise';
 import { validate as isEmail } from 'isemail';
 import isGitUrl from 'is-git-url';
+import pLimit from 'p-limit';
 import { decodeRemote, encodeRemote, graphqlWithAuth } from './util';
 import {
   getUserInfoFromCommit,
@@ -20,6 +21,7 @@ interface DefaultConfig {
   branch: string;
   directory: string;
   cachePath: string;
+  concurrencyLimit: number;
 }
 
 export interface CustomConfig extends Partial<DefaultConfig> {
@@ -30,26 +32,27 @@ export interface CustomConfig extends Partial<DefaultConfig> {
 
 export type Config = Required<CustomConfig>;
 
-const CONFIG_PATH = './gai.test.json';
+const CONFIG_PATH = './gai.json';
 const DEFAULT_CONFIG: DefaultConfig = {
   local: '.',
   directory: '.',
   branch: 'master',
   cachePath: 'gai-cache.json',
+  concurrencyLimit: 60,
 };
 
 const loadConfig = (config: string | CustomConfig = CONFIG_PATH): Promise<Config> => (
   (typeof config === 'string'
-    ? readFile(path.resolve(__dirname, config), 'utf-8')
+    ? readFile(path.resolve(process.cwd(), config), 'utf-8')
       .catch(() => {
-        throw new Error(`"${CONFIG_PATH}" does not exists`);
+        throw new Error(`"${config}" does not exists`);
       })
       .then<CustomConfig>((value) => JSON.parse(value))
     : Promise.resolve<CustomConfig>(config))
     .then((v) => {
       let custom = v;
-      if (v.local) custom.local = path.join(v.local);
-      if (v.cachePath) custom.cachePath = path.join(v.cachePath);
+      if (v.local) custom.local = path.normalize(v.local);
+      if (v.cachePath) custom.cachePath = path.normalize(v.cachePath);
       if (v.remote) {
         if (!isGitUrl(v.remote)) {
           throw new Error('wrong remote, it should be a url string');
@@ -118,11 +121,6 @@ const scanFiles = (dirPath: string): Promise<string[]> => (
     )
 );
 
-const getLog = (git: SimpleGit, filePath: string, from?: string) => git.log({
-  file: filePath,
-  from,
-});
-
 const getAuthorFromSearch = (email: string) => (
   graphqlWithAuth<SearchUserInfo>(searchUserInfo, { queryStr: email })
     .then(({ search: { nodes } }) => {
@@ -188,46 +186,65 @@ const getGitHubInfo: GetGitHubInfo = (props) => {
 };
 
 const writeCache = (config: Config, cacheMap: Map<string, string>) => (
-  writeFile(path.resolve(__dirname, config.cachePath), JSON.stringify(Object.fromEntries(cacheMap)))
+  writeFile(
+    path.resolve(process.cwd(), config.cachePath),
+    JSON.stringify(Object.fromEntries(cacheMap)),
+  )
     .catch(() => {
       throw new Error(`cannot write to ${config.cachePath}`);
     })
 );
 
 const readCache = (config: Config): Promise<Map<string, string>> => (
-  readFile(path.resolve(__dirname, config.cachePath))
+  readFile(path.resolve(process.cwd(), config.cachePath))
     .then((buf) => buf.toString())
     .then((v) => new Map(JSON.parse(v)) as Map<string, string>)
     .catch(() => new Map<string, string>()));
 
-const cacheInfo = async (git: SimpleGit, filePaths: string[], config: Config) => {
-  const len = config.local.length;
+const cacheInfo = async (git: SimpleGit, config: Config) => {
   const infoCache = await readCache(config);
-  const commits = new Set<string>();
+  const limit = pLimit(config.concurrencyLimit);
 
-  await Promise.allSettled(filePaths.map((f) => getLog(git, f.slice(len + 1), infoCache.get('commit'))
+  await git.log({ from: infoCache.get('commit') })
     .then((v) => {
-      if (v.latest) infoCache.set('commit', v.latest.hash);
-      return v.all;
-    })
-    .then((logs) => Promise.allSettled(logs.map(async (log) => {
-      if (!commits.has(log.hash)) {
-        commits.add(log.hash);
-        if (!infoCache.has(log.author_email)) {
-          const name = await getGitHubInfo({
-            email: log.author_email,
-            commit: log.hash,
-            owner: config.owner,
-            repo: config.repo,
-          });
-          infoCache.set(log.author_email, name);
+      if (v.latest) {
+        if (infoCache.get('commit') === v.latest.hash) {
+          throw new Error('Nothing new');
+        } else {
+          infoCache.set('commit', v.latest.hash);
+          return v.all;
         }
+      } else {
+        throw new Error('Has no commits');
       }
-    })))))
-    .then(() => {
-      writeCache(config, infoCache);
-    });
+    })
+    .then((logs) => logs.map((logInfo) => limit(async (log: DefaultLogFields & ListLogLine) => {
+      if (!infoCache.has(log.author_email)) {
+        const name = await getGitHubInfo({
+          email: log.author_email,
+          commit: log.hash,
+          owner: config.owner,
+          repo: config.repo,
+        });
+        infoCache.set(log.author_email, name);
+      }
+    }, logInfo)))
+    .then((logs) => Promise.all(logs))
+    .then(() => writeCache(config, infoCache));
 };
+
+const cacheGitAuthorsInfo = (config?: Parameters<typeof loadConfig>[0]) => (
+  loadConfig(config)
+    .then((con) => Promise.all([con, initRepo(con)]))
+    .catch((err) => {
+      console.error(err);
+      throw new Error('Initialization failed');
+    })
+    .then(([con, git]) => cacheInfo(git, con))
+    .catch((err) => {
+      throw err;
+    })
+);
 
 export {
   CONFIG_PATH,
@@ -235,8 +252,8 @@ export {
   loadConfig,
   initRepo,
   scanFiles,
-  getLog,
   getGitHubInfo,
   getAuthorFromCommit,
   cacheInfo,
+  cacheGitAuthorsInfo,
 };
