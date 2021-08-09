@@ -237,6 +237,7 @@ const readCache = (cachePath: Config['cachePath']): Promise<Map<string, string>>
 const cacheInfo = async (git: SimpleGit, config: Config) => {
   const infoCache = await readCache(config.cachePath);
   const limit = pLimit(config.concurrencyLimit);
+  const commitKey = 'commit';
 
   const setAuthorName = async (log: DefaultLogFields & ListLogLine) => {
     if (!infoCache.has(log.author_email)) {
@@ -250,13 +251,13 @@ const cacheInfo = async (git: SimpleGit, config: Config) => {
     }
   };
 
-  await git.log({ from: infoCache.get('commit') })
+  await git.log({ from: infoCache.get(commitKey) })
     .then((v) => {
       if (v.latest) {
-        if (infoCache.get('commit') === v.latest.hash) {
+        if (infoCache.get(commitKey) === v.latest.hash) {
           throw new Error('Nothing new');
         } else {
-          infoCache.set('commit', v.latest.hash);
+          infoCache.set(commitKey, v.latest.hash);
           return v.all;
         }
       } else {
