@@ -1,6 +1,6 @@
-import { cacheGitAuthorsInfo } from './src';
+import { cacheGitHubAuthorsName } from './src';
 
-cacheGitAuthorsInfo()
+cacheGitHubAuthorsName()
   .then(() => {
     console.log('Build the cache successfully');
   })

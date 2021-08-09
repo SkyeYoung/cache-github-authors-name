@@ -272,7 +272,7 @@ const cacheInfo = async (git: SimpleGit, config: Config) => {
     .then(() => writeCache(config.cachePath, infoCache));
 };
 
-const cacheGitAuthorsInfo = (config?: Parameters<typeof loadConfig>[0]) => (
+const cacheGitHubAuthorsName = (config?: Parameters<typeof loadConfig>[0]) => (
   loadConfig(config)
     .then((con) => Promise.all([con, initRepo(con)]))
     .catch((err) => {
@@ -297,5 +297,5 @@ export {
   writeCache,
   readCache,
   cacheInfo,
-  cacheGitAuthorsInfo,
+  cacheGitHubAuthorsName,
 };
