@@ -25,6 +25,7 @@ interface DefaultConfig {
   concurrencyLimit: number;
   isPrivate: boolean;
   skipHttpsCheck: boolean;
+  skipSearch: boolean;
 }
 
 export interface CustomConfig extends Partial<DefaultConfig> {
@@ -44,6 +45,7 @@ const DEFAULT_CONFIG: DefaultConfig = {
   concurrencyLimit: 60,
   isPrivate: false,
   skipHttpsCheck: false,
+  skipSearch: false,
 };
 
 const loadConfig = (config: string | CustomConfig = CONFIG_PATH): Promise<Config> => (
@@ -246,6 +248,7 @@ const cacheInfo = async (git: SimpleGit, config: Config) => {
         commit: log.hash,
         owner: config.owner,
         repo: config.repo,
+        skipSearch: config.skipSearch,
       });
       infoCache.set(log.author_email, name);
     }
@@ -289,6 +292,7 @@ export {
   initRepo,
   scanFiles,
   getGitHubInfo,
+  getAuthorFromSearch,
   getAuthorFromCommit,
   writeCache,
   readCache,
