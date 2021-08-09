@@ -1,31 +1,38 @@
 import { readFileSync } from 'fs';
 import path from 'path';
+import { rm } from 'fs/promises';
 import {
+  cacheGitHubAuthorsName,
   cacheInfo,
   Config,
-  CONFIG_PATH,
   DEFAULT_CONFIG,
   getAuthorFromCommit,
   getGitHubInfo,
-  getLog,
   initRepo,
   loadConfig,
   scanFiles,
 } from '../src';
 
 const configPath = path.resolve(__dirname, './gai.test.json');
-const config: Config = { ...DEFAULT_CONFIG, ...JSON.parse(readFileSync(configPath, 'utf-8')) };
+const config: Config = {
+  ...DEFAULT_CONFIG,
+  ...JSON.parse(readFileSync(configPath, 'utf-8')),
+};
 const wrongConfig = {
   ...config,
   local: 'dist',
   remote: 'wrong url',
 };
+const clean = (con: Config) => Promise.all([con.local, con.cachePath].map((v) => rm(v, {
+  recursive: true,
+  force: true,
+})));
 
 describe('load config', () => {
   test('with wrong path',
-    () => expect(loadConfig(''))
+    () => expect(loadConfig('wrong'))
       .rejects
-      .toThrowError(`"${CONFIG_PATH}" does not exists`));
+      .toThrowError('"wrong" does not exists'));
   test('with wrong config',
     () => expect(loadConfig(wrongConfig))
       .rejects
@@ -57,22 +64,16 @@ describe('scan files', () => {
     .toThrowError(`cannot read "${wrongConfig.remote}"`));
 });
 
-describe('get log', () => {
-  test('with real path', () => expect(initRepo(config)
-    .then((v) => getLog(v, 'fe.Dockerfile')))
-    .resolves
-    .toBeDefined());
-});
-
 describe('get author info from commit', () => {
-  const commitConfig = {
+  const cConfig = {
     owner: 'JUST-NC',
     repo: 'syn-sys',
     commit: 'fdb2db05884504bb70b1177b4ccc8dba942a332',
   };
-  test('with wrong commit id', () => expect(getAuthorFromCommit(commitConfig))
+  test('with wrong commit id', () => expect(getAuthorFromCommit(cConfig))
     .rejects
-    .toThrowError(`cannot find commit "${commitConfig.commit}" in "${commitConfig.owner}/${commitConfig.repo}"`));
+    .toThrowError(`cannot find commit "${cConfig.commit}" in "${cConfig.owner}/${cConfig.repo}"`),
+  1000 * 20);
 });
 
 describe('get GitHub name', () => {
@@ -101,22 +102,26 @@ describe('get GitHub name', () => {
     .resolves
     .toBeDefined());
 
-  test('with wrong email (must query in github)',
+  test('with wrong email (i.e. must query in github)',
     () => expect(getGitHubInfo(wrongCommit))
       .resolves
-      .toBeDefined(), 1000 * 20);
+      .toBeDefined(), 1000 * 200);
 });
 
 describe('cache info', () => {
   test('with real config', () => expect(loadConfig(configPath)
-    .then((con) => Promise.allSettled([con, initRepo(con), scanFiles(con.local)]))
-    .then(([con, git, files]) => {
-      if (con.status === 'fulfilled' && git.status === 'fulfilled' && files.status === 'fulfilled') {
-        return cacheInfo(git.value, files.value, con.value);
-      } else {
-        throw new Error('无法初始化');
-      }
-    }))
+    .then(async (con) => {
+      await clean(con);
+      return Promise.all([con, initRepo(con)]);
+    })
+    .then(([con, git]) => cacheInfo(git, con)))
+    .resolves
+    .toBeUndefined(), 1000 * 2000);
+});
+
+describe('cache git authors info', () => {
+  test('with real config', () => expect(clean(config)
+    .then(() => cacheGitHubAuthorsName(configPath)))
     .resolves
     .toBeUndefined(), 1000 * 2000);
 });
