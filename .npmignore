@@ -14,8 +14,7 @@ webpack.config.*
 *.env
 *.tgz
 tsconfig.json
-*.ts
-!*.d.ts
+index.ts
 
 /.github/
 /test/

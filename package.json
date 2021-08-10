@@ -1,6 +1,6 @@
 {
   "name": "cache-github-authors-name",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "author": {
     "email": "iskyex@outlook.com",
@@ -10,7 +10,7 @@
   "main": "lib/index.js",
   "types": "lib/types",
   "scripts": {
-    "build": "tsc -v && tsc -p './src/tsconfig.json'",
+    "build": "tsc -v && cp ./tsconfig.json ./src/tsconfig.json && tsc -p './src'",
     "build-script": "npx webpack --mode=production",
     "test": "npx jest --coverage",
     "lint": "npx eslint --fix"
