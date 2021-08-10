@@ -15,7 +15,7 @@
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "extends": "./tsconfig.json"
+    "extends": "./src/tsconfig.json"
   },
   "plugins": [
     "@typescript-eslint",

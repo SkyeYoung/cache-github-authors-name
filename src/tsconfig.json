@@ -1,22 +1,24 @@
 {
   "compilerOptions": {
-    "module": "ESNext",
+    "module": "commonjs",
     "lib": [
       "ESNext"
     ],
     "target": "es5",
-    "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
     "moduleResolution": "Node",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "skipLibCheck": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "declaration": true,
+    "outDir": "../lib",
+    "declarationDir": "../lib/types",
+    "declarationMap": false
   },
   "exclude": [
-    "node_modules",
-    "dist"
+    "../node_modules"
   ],
   "ts-node": {
     "compilerOptions": {

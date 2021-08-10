@@ -2,9 +2,18 @@
   "name": "cache-github-authors-name",
   "version": "0.2.0",
   "license": "MIT",
+  "author": {
+    "email": "iskyex@outlook.com",
+    "name": "SkyeYoung"
+  },
+  "description": "According to the git log, cache authors' accurate GitHub username",
+  "main": "lib/index.js",
+  "types": "lib/types",
   "scripts": {
-    "build": "npx webpack --mode=production",
-    "test": "npx jest --coverage"
+    "build": "tsc -v && tsc -p './src/tsconfig.json'",
+    "build-script": "npx webpack --mode=production",
+    "test": "npx jest --coverage",
+    "lint": "npx eslint --fix"
   },
   "devDependencies": {
     "@octokit/graphql-schema": "^10.58.0",

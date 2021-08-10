@@ -1,0 +1,24 @@
+### Example user template template
+### Example user template
+
+# IntelliJ project files
+.idea
+*.iml
+
+.editorconfig
+.eslintrc.json
+.graphqlconfig
+.swcrc
+jest.config.*
+webpack.config.*
+*.env
+*.tgz
+tsconfig.json
+*.ts
+!*.d.ts
+
+/.github/
+/test/
+/src/
+/.cache/
+

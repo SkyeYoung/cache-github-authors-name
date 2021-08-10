@@ -1,4 +1,3 @@
-import path from 'path';
 import type { Configuration } from 'webpack';
 
 const webpackConfig: Configuration = {
@@ -24,10 +23,6 @@ const webpackConfig: Configuration = {
       util: false,
       child_process: false,
     },
-  },
-  output: {
-    filename: 'main.js',
-    path: path.resolve(__dirname, 'dist'),
   },
 };
 
