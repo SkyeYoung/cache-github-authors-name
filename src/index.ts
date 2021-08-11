@@ -115,7 +115,7 @@ const initRepo = (config: Config): Promise<SimpleGit> => {
             repo = simpleGit();
             await repo.clone(remote, local);
           } catch (err) {
-            console.error(err);
+            console.error(err.message);
             throw new Error('Cannot clone new remote to repo');
           }
         }
@@ -276,7 +276,7 @@ const cacheGitHubAuthorsName = (config?: Parameters<typeof loadConfig>[0]) => (
   loadConfig(config)
     .then((con) => Promise.all([con, initRepo(con)]))
     .catch((err) => {
-      console.error(err);
+      console.error(err.message);
       throw new Error('Initialization failed');
     })
     .then(([con, git]) => cacheInfo(git, con))
