@@ -6,7 +6,18 @@
     "email": "iskyex@outlook.com",
     "name": "SkyeYoung"
   },
-  "description": "According to the git log, cache authors' accurate GitHub username",
+  "homepage": "https://github.com/SkyeYoung/cache-github-authors-name",
+  "description": "Cache the exact GitHub usernames of repository authors",
+  "keywords": [
+    "typescript",
+    "graphql",
+    "github",
+    "git",
+    "repository",
+    "cache",
+    "authors",
+    "name"
+  ],
   "main": "lib/index.js",
   "types": "lib/types",
   "scripts": {
